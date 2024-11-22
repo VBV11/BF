@@ -1,48 +1,30 @@
-$imageUrl = "https://pixy.org/src/465/4657011.jpg"
-$imagePath = "$env:USERPROFILE\Downloads\background.jpg"
+# PowerShell script om wijzigingen aan achtergrondinstellingen ongedaan te maken
 
-Invoke-WebRequest -Uri $imageUrl -OutFile $imagePath
-
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-
-public class Wallpaper {
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-
-    public const int SPI_SETDESKWALLPAPER = 20;
-    public const int SPIF_UPDATEINIFILE = 0x01;
-    public const int SPIF_SENDWININICHANGE = 0x02;
-
-    public static void SetWallpaper(string path) {
-        SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, path, SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE);
-    }
-}
-"@
-
-[Wallpaper]::SetWallpaper($imagePath)
-
+# Verwijder de beperking op wijzigen van de achtergrond
 $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop"
-if (-not (Test-Path $regPath)) {
-    New-Item -Path $regPath -Force | Out-Null
+if (Test-Path $regPath) {
+    Remove-ItemProperty -Path $regPath -Name "NoChangingWallpaper" -ErrorAction SilentlyContinue
+    Write-Host "De beperking op wijzigen van de achtergrond is verwijderd."
+} else {
+    Write-Host "De beperking op wijzigen van de achtergrond bestaat niet."
 }
 
-Set-ItemProperty -Path $regPath -Name "NoChangingWallpaper" -Value 1
-
+# Herstel toegang tot de instellingen voor personalisatie
 $regPath2 = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Policies\System"
-if (-not (Test-Path $regPath2)) {
-    New-Item -Path $regPath2 -Force | Out-Null
+if (Test-Path $regPath2) {
+    Remove-ItemProperty -Path $regPath2 -Name "NoDispBackgroundPage" -ErrorAction SilentlyContinue
+    Write-Host "Toegang tot de instellingen voor personalisatie is hersteld."
+} else {
+    Write-Host "Er waren geen beperkingen op toegang tot de instellingen voor personalisatie."
 }
 
-Set-ItemProperty -Path $regPath2 -Name "NoDispBackgroundPage" -Value 1
-
-Remove-Item "$env:APPDATA\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt" -ErrorAction SilentlyContinue
-
-$runMruRegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU"
-if (Test-Path $runMruRegPath) {
-    Remove-Item -Path $runMruRegPath -Recurse -Force
-    New-Item -Path $runMruRegPath | Out-Null
+# Optioneel: verwijder de gedownloade achtergrondafbeelding
+$imagePath = "$env:USERPROFILE\Downloads\background.jpg"
+if (Test-Path $imagePath) {
+    Remove-Item $imagePath -Force
+    Write-Host "De gedownloade achtergrondafbeelding is verwijderd."
+} else {
+    Write-Host "De achtergrondafbeelding werd niet gevonden."
 }
 
-Restart-Computer -Force
+Write-Host "Alle wijzigingen zijn ongedaan gemaakt."
