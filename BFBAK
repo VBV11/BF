@@ -1,4 +1,4 @@
-$imageUrl = "https://pixy.org/src/465/4657011.jpg"
+$imageUrl = "https://wallpaperaccess.com/full/1484523.jpg"
 $imagePath = "$env:USERPROFILE\Downloads\background.jpg"
 
 Invoke-WebRequest -Uri $imageUrl -OutFile $imagePath
